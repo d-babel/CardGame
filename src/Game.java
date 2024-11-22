@@ -9,6 +9,10 @@ public class Game {
     private int communityCardCount;
     private boolean player1Folded;
     private boolean player2Folded;
+    private int pot;
+    private int player1Currency;
+    private int player2Currency;
+    private int currentBet;
 
     public Game() {
         String[] ranks = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
@@ -20,6 +24,10 @@ public class Game {
         communityCardCount = 0;
         player1Folded = false;
         player2Folded = false;
+        pot = 0;
+        player1Currency = 1000;
+        player2Currency = 1000;
+        currentBet = 0;
 
         Scanner scanner = new Scanner(System.in);
 
@@ -108,58 +116,123 @@ public class Game {
     public void bettingRound() {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.print(player1.getName() + ", do you want to (1) Bet, (2) Fold? Enter choice: ");
+        System.out.print(player1.getName() + ", do you want to (1) Bet, (2) Fold" + (currentBet > 0 ? ", (3) Call" : "") + "? Enter choice: "); // modified: only allow call if currentBet > 0
         int choice1 = scanner.nextInt();
         if (choice1 == 2){
             player1Folded = true;
             return;
+        } else if (choice1 == 3 && currentBet > 0) {
+            if (currentBet > player1Currency) {
+                System.out.println("You don't have enough currency to call. You must fold.");
+                player1Folded = true;
+                return;
+            } else {
+                player1Currency -= currentBet;
+                pot += currentBet;
+            }
+        } else {
+            int bet1 = nextBet(player1Currency);
+            while (bet1 < currentBet || bet1 > player1Currency) {
+                if (bet1 > player1Currency) {
+                    System.out.println("Bet exceeds your current currency. You have: " + player1Currency);
+                } else {
+                    System.out.println("Your bet must be at least the current bet of: " + currentBet);
+                }
+                bet1 = nextBet(player1Currency);
+            }
+            player1Currency -= bet1;
+            pot += bet1;
+            currentBet = bet1;
         }
 
-        System.out.print(player2.getName() + ", do you want to (1) Bet, (2) Fold? Enter choice: ");
+        System.out.print(player2.getName() + ", do you want to (1) Bet, (2) Fold" + (currentBet > 0 ? ", (3) Call" : "") + "? Enter choice: "); // modified: only allow call if currentBet > 0
         int choice2 = scanner.nextInt();
         if (choice2 == 2){
-            player1Folded = false;
+            player2Folded = true;
             return;
+        } else if (choice2 == 3 && currentBet > 0) {
+            if (currentBet > player2Currency) {
+                System.out.println("You don't have enough currency to call. You must fold.");
+                player2Folded = true;
+                return;
+            } else {
+                player2Currency -= currentBet;
+                pot += currentBet;
+            }
+        } else {
+            int bet2 = nextBet(player2Currency);
+            while (bet2 < currentBet || bet2 > player2Currency) {
+                if (bet2 > player2Currency) {
+                    System.out.println("Bet exceeds your current currency. You have: " + player2Currency);
+                } else {
+                    System.out.println("Your bet must be at least the current bet of: " + currentBet);
+                }
+                bet2 = nextBet(player2Currency);
+            }
+            player2Currency -= bet2;
+            pot += bet2;
+            currentBet = bet2;
+        }
+    }
+
+    public int nextBet(int maxCurrency) {
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            System.out.print("Enter your bet amount (or enter a percentage, e.g., 10%): ");
+            String input = scanner.nextLine();
+            try {
+                if (input.endsWith("%")) {
+                    int percentage = Integer.parseInt(input.replace("%", "").trim());
+                    if (percentage < 0 || percentage > 100) {
+                        System.out.println("Invalid percentage. Enter a value between 0 and 100.");
+                    } else {
+                        return (maxCurrency * percentage) / 100;
+                    }
+                } else {
+                    int bet = Integer.parseInt(input.trim());
+                    if (bet < 0) {
+                        System.out.println("Bet cannot be negative.");
+                    } else {
+                        return bet;
+                    }
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a valid number or percentage.");
+            }
         }
     }
 
     public void determineWinner() {
         if (player1Folded) {
-            System.out.println(player2.getName() + " wins because " + player1.getName() + "folded!");
+            System.out.println(player2.getName() + " wins because " + player1.getName() + " folded!");
+            System.out.println(player2.getName() + " wins the pot of " + pot + " chips!");
+            player2Currency += pot;
         } else if (player2Folded) {
-            System.out.println(player1.getName() + " wins because " + player2.getName() + "folded!");
+            System.out.println(player1.getName() + " wins because " + player2.getName() + " folded!");
+            System.out.println(player1.getName() + " wins the pot of " + pot + " chips!");
+            player1Currency += pot;
         } else {
             int player1Points = evaluateHand(player1);
             int player2Points = evaluateHand(player2);
 
             if (player1Points > player2Points) {
                 System.out.println(player1.getName() + " wins with " + player1Points + " points!");
+                System.out.println(player1.getName() + " wins the pot of " + pot + " chips!");
+                player1Currency += pot;
             } else if (player1Points < player2Points) {
                 System.out.println(player2.getName() + " wins with " + player2Points + " points!");
+                System.out.println(player2.getName() + " wins the pot of " + pot + " chips!");
+                player2Currency += pot;
             } else {
                 System.out.println("It's a tie!");
-
+                System.out.println("The pot of " + pot + " chips is split!");
+                player1Currency += pot / 2;
+                player2Currency += pot / 2;
             }
         }
+        pot = 0;
+        currentBet = 0;
     }
-
-//    public int evaluateHand(Player player ) {
-//        Card[] combinedCards = new Card[communityCardCount + player.getHand().length];
-//        for (int i = 0; i < player.getHand(); i++){
-//            combinedCards[i] = player.getHand()[i];
-//        }
-//        for (int i = 0; i < communityCardCount; i++){
-//            combinedCards[player.getHand().length + i] = communityCards[i];
-//        }
-//
-//        //placeholder
-//
-//        int totalValue = 0;
-//        for (Card card : combinedCards){
-//            totalValue += card.getValue();
-//        }
-//        return totalValue;
-//    }
 
     public int evaluateHand(Player player ) {
         ArrayList<Card> combinedCards = new ArrayList<>();
@@ -177,12 +250,12 @@ public class Game {
         int bestValue = 0;
         ArrayList<Card> bestHand = new ArrayList<>();
 
-        // evauluate all possibel 5 card combinations
+        // evaluate all possible 5 card combinations
         for (int i = 0; i < combinedCards.size(); i++){
             for (int j = i + 1; j < combinedCards.size(); j++) {
                 ArrayList<Card> tempHand = new ArrayList<>(combinedCards);
                 tempHand.remove(i);
-                tempHand.remove(j - 1); // adjust index after removing previous card
+                tempHand.remove(j - 1);
                 int handValue = calculateHandValue(tempHand);
                 if (handValue > bestValue) {
                     bestValue = handValue;
@@ -192,7 +265,6 @@ public class Game {
         }
         return bestValue;
     }
-
 
     //NOTE: INCREMENT VAR TO NOT REPEAT COMPARISONS
     private int calculateHandValue(ArrayList<Card> hand) {
