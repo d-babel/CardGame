@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Scanner;
+// import org.w3c.dom.ls.LSOutput --> save and resume on different device
 
 public class Game {
     private Deck deck;
