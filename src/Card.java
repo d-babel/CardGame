@@ -1,3 +1,6 @@
+// Drew Babel
+// 12/3/2024
+
 public class Card {
     private String rank;
     private String suit;

@@ -1,3 +1,6 @@
+// Drew Babel
+// 12/3/2024
+
 class Player {
     private String name;
     private Card[] hand;
