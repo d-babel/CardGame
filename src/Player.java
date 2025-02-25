@@ -1,7 +1,7 @@
 // Drew Babel
 // 12/3/2024
 
-class Player {
+public class Player {
     private String name;
     private Card[] hand;
     private int handSize;
@@ -17,7 +17,7 @@ class Player {
         this.points = 0;
     }
 
-    // constructor with name and initial hand [REQUIRED: "ensure initialHand length matches maxHandSize to avoid inconsistencies"]
+    // constructor with name and initial hand
     public Player(String name, Card[] initialHand) {
         this.name = name;
         this.hand = initialHand;
@@ -54,14 +54,14 @@ class Player {
         return points;
     }
 
-    // add card to player's hand [REQUIRED: "consider checking if card is null before adding to avoid null entries"]
+    // add card to player's hand
     public void addCard(Card card) {
         if (handSize < hand.length) {
             hand[handSize++] = card;
         }
     }
 
-    // reset player's hand [REQUIRED: "should hand size be dynamic or fixed at 5 for all cases?"]
+    // reset player's hand
     public void resetHand() {
         hand = new Card[5];
         handSize = 0;

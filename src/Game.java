@@ -3,7 +3,6 @@
 
 import java.util.ArrayList;
 import java.util.Scanner;
-// import org.w3c.dom.ls.LSOutput --> save and resume on different device
 
 public class Game {
     private Deck deck;
@@ -14,10 +13,10 @@ public class Game {
     private boolean player1Folded;
     private boolean player2Folded;
     private int pot;
-    private int player1Currency;
-    private int player2Currency;
     private int currentBet;
     private Scanner scanner;
+
+    private String difficulty = "easy"; // default if not set
 
     public Game() {
         String[] ranks = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
@@ -30,8 +29,6 @@ public class Game {
         player1Folded = false;
         player2Folded = false;
         pot = 0;
-        player1Currency = 1000;
-        player2Currency = 1000;
         currentBet = 0;
 
         scanner = new Scanner(System.in);
@@ -43,6 +40,50 @@ public class Game {
         player2 = new Player(scanner.nextLine(), 5);
     }
 
+    public void setDifficulty(String diff) {
+        difficulty = diff;
+    }
+
+    public String getDifficulty() {
+        return difficulty;
+    }
+
+    public Player getPlayer1() {
+        return player1;
+    }
+
+    public Player getPlayer2() {
+        return player2;
+    }
+
+    public Deck getDeck() {
+        return deck;
+    }
+
+    public Card[] getCommunityCards() {
+        return communityCards;
+    }
+
+    public int getCommunityCardCount() {
+        return communityCardCount;
+    }
+
+    public boolean isPlayer1Folded() {
+        return player1Folded;
+    }
+
+    public boolean isPlayer2Folded() {
+        return player2Folded;
+    }
+
+    public int getPot() {
+        return pot;
+    }
+
+    public int getCurrentBet() {
+        return currentBet;
+    }
+
     public void printInstructions() {
         System.out.println("Welcome to Texas Hold'em Poker!");
         System.out.println("[RULES]");
@@ -51,14 +92,12 @@ public class Game {
         System.out.println("the player with the best 5-card hand at the end wins the pot.");
     }
 
-    // main game loop
-    public void playGame() {
+    public void playGameConsole() {
         boolean keepPlaying = true;
         while (keepPlaying) {
             resetGame();
             printInstructions();
 
-            // deal initial two cards to each player
             for (int i = 0; i < 2; i++) {
                 player1.addCard(deck.deal());
                 player2.addCard(deck.deal());
@@ -67,7 +106,6 @@ public class Game {
             System.out.println(player1);
             System.out.println(player2);
 
-            // betting rounds and reveal community cards progressively
             bettingRound();
             if (player1Folded || player2Folded) {
                 determineWinner();
@@ -102,13 +140,11 @@ public class Game {
 
             determineWinner();
 
-            // play again?
             System.out.print("Do you want to play again? (y/n): ");
             keepPlaying = getYesNoResponse();
         }
     }
 
-    // resets the game state for a new round
     public void resetGame() {
         deck.shuffle();
         communityCardCount = 0;
@@ -120,52 +156,68 @@ public class Game {
         player2.resetHand();
     }
 
+    // deals 3 community cards
     public void dealFlop() {
         for (int i = 0; i < 3; i++) {
             communityCards[communityCardCount++] = deck.deal();
         }
     }
 
+    // deals 1 community card
     public void dealTurn() {
         communityCards[communityCardCount++] = deck.deal();
     }
 
+    // deals 1 community card
     public void dealRiver() {
         communityCards[communityCardCount++] = deck.deal();
     }
 
     public String getCommunityCardsString() {
-        String result = "";
+        StringBuilder result = new StringBuilder();
         for (int i = 0; i < communityCardCount; i++){
-            result += communityCards[i];
+            result.append(communityCards[i]);
             if (i < communityCardCount - 1) {
-                result += ", ";
+                result.append(", ");
             }
         }
-        return result;
+        return result.toString();
     }
 
-    // betting round
+    public void addToPot(int amount) {
+        pot += amount;
+    }
+
+    public void setCurrentBet(int amount) {
+        currentBet = amount;
+    }
+
+    public void foldPlayer1() {
+        player1Folded = true;
+    }
+
+    public void foldPlayer2() {
+        player2Folded = true;
+    }
+
     public void bettingRound() {
-        // player 1 action
         if (!playerAction(player1)) {
             player1Folded = true;
             return;
         }
-        // player 2 action
-        if (!playerAction(player2)) {
+        if (!playerActionAI(player2)) {
             player2Folded = true;
         }
     }
 
-    // players action (bet, call, or fold)
     public boolean playerAction(Player player) {
-        System.out.print(player.getName() + ", do you want to (1) Bet, (2) Fold" + (currentBet > 0 ? ", (3) Call" : "") + "? Enter choice: ");
+        System.out.print(player.getName() + ", do you want to (1) Bet, (2) Fold"
+                + (currentBet > 0 ? ", (3) Call" : "") + "? Enter choice: ");
         int choice = scanner.nextInt();
-        scanner.nextLine();  // clear buffer
-        if (choice == 2) { // fold
+        scanner.nextLine();
+        if (choice == 2) {
             return false;
-        } else if (choice == 3 && currentBet > 0) { // call
+        } else if (choice == 3 && currentBet > 0) {
             if (currentBet > player.getCurrency()) {
                 System.out.println("you don't have enough currency to call. you must fold.");
                 return false;
@@ -173,7 +225,7 @@ public class Game {
                 player.decreaseCurrency(currentBet);
                 pot += currentBet;
             }
-        } else if (choice == 1) { // bet
+        } else if (choice == 1) {
             int bet = nextBet(player.getCurrency());
             while (bet < currentBet || bet > player.getCurrency()) {
                 if (bet > player.getCurrency()) {
@@ -190,20 +242,108 @@ public class Game {
         return true;
     }
 
-    // get player next bet amount
+    public boolean playerActionAI(Player aiPlayer) {
+        if (difficulty.equalsIgnoreCase("easy")) {
+            return aiActionEasy(aiPlayer);
+        } else if (difficulty.equalsIgnoreCase("medium")) {
+            return aiActionMedium(aiPlayer);
+        } else {
+            return aiActionHard(aiPlayer);
+        }
+    }
+
+    private boolean aiActionEasy(Player aiPlayer) {
+        int aiCurrency = aiPlayer.getCurrency();
+        if (currentBet == 0) {
+            int bet = (int)(Math.random() * 50);
+            if (bet > aiCurrency) bet = aiCurrency;
+            aiPlayer.decreaseCurrency(bet);
+            pot += bet;
+            currentBet = bet;
+        } else {
+            double chance = Math.random();
+            if (chance < 0.3) {
+                return false;
+            } else {
+                if (currentBet > aiCurrency) {
+                    return false;
+                } else {
+                    aiPlayer.decreaseCurrency(currentBet);
+                    pot += currentBet;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean aiActionMedium(Player aiPlayer) {
+        int aiCurrency = aiPlayer.getCurrency();
+        if (currentBet == 0) {
+            int bet = (int)(Math.random() * 100);
+            if (bet > aiCurrency) bet = aiCurrency;
+            aiPlayer.decreaseCurrency(bet);
+            pot += bet;
+            currentBet = bet;
+        } else {
+            double chance = Math.random();
+            if (chance < 0.1) {
+                return false;
+            } else {
+                if (currentBet > aiCurrency) {
+                    return false;
+                } else {
+                    aiPlayer.decreaseCurrency(currentBet);
+                    pot += currentBet;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean aiActionHard(Player aiPlayer) {
+        int aiCurrency = aiPlayer.getCurrency();
+        if (currentBet == 0) {
+            int bet = (int)(Math.random() * 200) + 50;
+            if (bet > aiCurrency) bet = aiCurrency;
+            aiPlayer.decreaseCurrency(bet);
+            pot += bet;
+            currentBet = bet;
+        } else {
+            double chance = Math.random();
+            if (chance < 0.05) {
+                return false;
+            } else if (chance < 0.5) {
+                if (currentBet > aiCurrency) {
+                    return false;
+                } else {
+                    aiPlayer.decreaseCurrency(currentBet);
+                    pot += currentBet;
+                }
+            } else {
+                int additionalBet = (int)(Math.random() * 200);
+                int newBet = currentBet + additionalBet;
+                if (newBet > aiCurrency) newBet = aiCurrency;
+                aiPlayer.decreaseCurrency(newBet);
+                pot += newBet;
+                currentBet = newBet;
+            }
+        }
+        return true;
+    }
+
     public int nextBet(int maxCurrency) {
         while (true) {
             System.out.print("enter your bet amount (or enter a percentage, e.g., 10%): ");
             String input = scanner.nextLine();
             try {
-                if (input.endsWith("%")) { // percent bet of current wealth
+                if (input.endsWith("%")) {
                     int percentage = Integer.parseInt(input.replace("%", "").trim());
                     if (percentage < 0 || percentage > 100) {
                         System.out.println("invalid percentage. enter a value between 0 and 100.");
                     } else {
                         return (maxCurrency * percentage) / 100;
                     }
-                } else { // bet by exact amount
+                } else {
                     int bet = Integer.parseInt(input.trim());
                     if (bet < 0) {
                         System.out.println("bet cannot be negative.");
@@ -217,17 +357,16 @@ public class Game {
         }
     }
 
-    // determine the winner of the game
     public void determineWinner() {
-        if (player1Folded) { // player 1 folded, player 2 wins
+        if (player1Folded) {
             System.out.println(player2.getName() + " wins because " + player1.getName() + " folded!");
             System.out.println(player2.getName() + " wins the pot of " + pot + " chips!");
             player2.increaseCurrency(pot);
-        } else if (player2Folded) { // player 2 folded, player 1 wins
+        } else if (player2Folded) {
             System.out.println(player1.getName() + " wins because " + player2.getName() + " folded!");
             System.out.println(player1.getName() + " wins the pot of " + pot + " chips!");
             player1.increaseCurrency(pot);
-        } else { // both players still in, compare hand values
+        } else {
             int player1Points = evaluateHand(player1);
             int player2Points = evaluateHand(player2);
 
@@ -239,7 +378,7 @@ public class Game {
                 System.out.println(player2.getName() + " wins with " + player2Points + " points!");
                 System.out.println(player2.getName() + " wins the pot of " + pot + " chips!");
                 player2.increaseCurrency(pot);
-            } else { // tie
+            } else {
                 System.out.println("it's a tie!");
                 System.out.println("the pot of " + pot + " chips is split!");
                 player1.increaseCurrency(pot / 2);
@@ -250,7 +389,6 @@ public class Game {
         currentBet = 0;
     }
 
-    // find best possible hand for the player
     public int evaluateHand(Player player) {
         ArrayList<Card> combinedCards = new ArrayList<>();
         for (Card card : player.getHand()) {
@@ -265,8 +403,6 @@ public class Game {
         }
 
         int bestValue = 0;
-
-        // find all possible 5-card combinations
         for (int i = 0; i < combinedCards.size(); i++) {
             for (int j = i + 1; j < combinedCards.size(); j++) {
                 ArrayList<Card> tempHand = new ArrayList<>(combinedCards);
@@ -281,9 +417,7 @@ public class Game {
         return bestValue;
     }
 
-    // calc value of a given hand
     private int calculateHandValue(ArrayList<Card> hand) {
-        // sort cards to simplify finding straights and flushes
         hand.sort((c1, c2) -> Integer.compare(c2.getValue(), c1.getValue()));
 
         boolean flush = true;
@@ -292,7 +426,6 @@ public class Game {
         int previousValue = hand.get(0).getValue();
         int valueSum = hand.get(0).getValue();
 
-        // check flush and straight
         for (int i = 1; i < hand.size(); i++) {
             Card card = hand.get(i);
             if (!card.getSuit().equals(suit)) {
@@ -305,17 +438,16 @@ public class Game {
             valueSum += card.getValue();
         }
 
-        // assign hand value based on poker rules
         if (flush && straight) {
-            return 800 + valueSum;  // straight flush
+            return 800 + valueSum;
         } else if (flush) {
-            return 500 + valueSum;  // flush
+            return 500 + valueSum;
         } else if (straight) {
-            return 400 + valueSum;  // straight
+            return 400 + valueSum;
         } else {
-            int[] valueCount = new int[15]; // to account for ace being both high and low
-            for (Card card : hand) {
-                valueCount[card.getValue()]++;
+            int[] valueCount = new int[15];
+            for (Card c : hand) {
+                valueCount[c.getValue()]++;
             }
             int fourOfKind = 0;
             int threeOfKind = 0;
@@ -332,22 +464,21 @@ public class Game {
                 }
             }
             if (fourOfKind > 0) {
-                return 700 + valueSum;  // four of a kind
+                return 700 + valueSum;
             } else if (threeOfKind > 0 && pairs > 0) {
-                return 600 + valueSum;  // full house
+                return 600 + valueSum;
             } else if (threeOfKind > 0) {
-                return 300 + valueSum;  // three of a kind
+                return 300 + valueSum;
             } else if (pairs > 1) {
-                return 200 + valueSum;  // two pair
+                return 200 + valueSum;
             } else if (pairs == 1) {
-                return 100 + valueSum;  // one pair
+                return 100 + valueSum;
             } else {
-                return valueSum;  // high card
+                return valueSum;
             }
         }
     }
 
-    // utility to handle yes/no input
     private boolean getYesNoResponse() {
         while (true) {
             String response = scanner.nextLine().trim().toLowerCase();
@@ -362,7 +493,6 @@ public class Game {
     }
 
     public static void main(String[] args) {
-        Game game = new Game();
-        game.playGame();
+        new CardView();
     }
 }
